@@ -16,78 +16,91 @@
  *  limitations under the License
  *
  */
-(function() {
+(function () {
   'use strict';
 
-  var QRCodeCamera = function(element) {
+  var QRCodeCamera = function (element) {
     // Controls the Camera and the QRCode Module
 
     var cameraManager = new CameraManager('camera');
     var qrCodeManager = new QRCodeManager('qrcode');
 
-
-    cameraManager.onframe = function() {
+    cameraManager.onframe = function () {
       // There is a frame in the camera, what should we do with it?
- 
+
       var imageData = cameraManager.getImageData();
-      var detectedQRCode = qrCodeManager.detectQRCode(imageData, function(url) {
-        if(url !== undefined) {
-          qrCodeManager.showDialog(url);
-        }
-      });
-    
+      var detectedQRCode = qrCodeManager.detectQRCode(imageData, function (url) {
+          if (url !== undefined) {
+            qrCodeManager.showDialog(url);
+          }
+        });
+
     };
   };
 
-  var QRCodeManager = function(element) {
+  var QRCodeManager = function (element) {
     var root = document.getElementById(element);
-    var canvas = document.getElementById("qr-canvas");
-    var qrcodeData = root.querySelector(".QRCodeSuccessDialog-data");
-    var qrcodeNavigate = root.querySelector(".QRCodeSuccessDialog-navigate");
-    var qrcodeIgnore = root.querySelector(".QRCodeSuccessDialog-ignore");
+    var canvas = document.getElementById('qr-canvas');
+    var qrcodeData = root.querySelector('.QRCodeSuccessDialog-data');
+    var qrcodeNavigate = root.querySelector('.QRCodeSuccessDialog-navigate');
+    var qrcodeIgnore = root.querySelector('.QRCodeSuccessDialog-ignore');
 
-    var client = new QRClient();
+    //var client = new QRClient();
+    var worker = new Worker('scripts/jsqrcode/qrworker.js');
 
     var self = this;
 
     this.currentUrl = undefined;
 
+    this.detectQRCode = function (imageData, callback) {
+      callback = callback || function () {};
+       
+      worker.postMessage(imageData);
 
-    this.detectQRCode = function(imageData, callback) {
-      callback = callback || function() {};
-
-      client.decode(imageData, function(result) {
-        if(result !== undefined) {
-          self.currentUrl = result;
+      worker.onmessage = function (result) {
+        var qrUrl = result.data;
+        if (qrUrl !== undefined) {
+          self.currentUrl = qrUrl;
         }
         callback(result);
-      });
+      };
+
+      worker.onerror = function (error) {
+        function WorkerException(message) {
+          this.name = 'WorkerException';
+          this.message = message + ': ' + error.message;
+        }
+        callback(undefined);
+        throw new WorkerException('Worker error');
+      };
     };
 
-    this.showDialog = function(url) {
+    this.showDialog = function (url) {
       root.style.display = 'block';
       qrcodeData.innerText = url;
     };
 
-    this.closeDialog = function() {
+    this.closeDialog = function () {
       root.style.display = 'none';
-      self.qrcodeNavigate = "";
-      qrcodeData.innerText = "";
+      self.qrcodeNavigate = '';
+      qrcodeData.innerText = '';
     };
 
-    qrcodeIgnore.addEventListener("click", function() {
+    qrcodeIgnore.addEventListener('click', function () {
       self.closeDialog();
-    }.bind(this));
+    }
+      .bind(this));
 
-    qrcodeNavigate.addEventListener("click", function() {
+    qrcodeNavigate.addEventListener('click', function () {
       // I really want this to be a link.
       window.location = this.currentUrl;
       this.closeDialog();
-    }.bind(this));
+    }
+      .bind(this));
 
   };
 
-  var CameraManager = function(element) {
+  var CameraManager = function (element) {
     // The camera gets a video stream, and adds it to a canvas.
     // The canvas is analysed but also displayed to the user.
     // The video is never show
@@ -105,7 +118,7 @@
 
     // Variables
     var dWidth;
-    var dHeight; 
+    var dHeight;
     var dx = 0;
     var dy = 0;
 
@@ -123,46 +136,51 @@
     // The camera stream.
     var localStream;
 
-    var overlayCoords = { x:0, y: 0, width: cameraCanvas.width, height: cameraCanvas.height };
+    var overlayCoords = {
+      x : 0,
+      y : 0,
+      width : cameraCanvas.width,
+      height : cameraCanvas.height
+    };
 
-    this.getImageData = function() {
+    this.getImageData = function () {
       // Only get the image data for what we will send to the detector.
       return canvas.getImageData(overlayCoords.x, overlayCoords.y, overlayCoords.width, overlayCoords.height);
     };
 
-    var drawOverlay = function(width, height) {
+    var drawOverlay = function (width, height) {
 
       var minLength = Math.min(width, height);
 
       var boxHeightSize = (height + 64 - minLength) / 2;
       var boxWidthSize = (width + 64 - minLength) / 2;
 
-      if(coordinatesHaveChanged) {
+      if (coordinatesHaveChanged) {
 
-        cameraOverlay.style.borderTopWidth = boxHeightSize + "px";
-        cameraOverlay.style.borderLeftWidth = boxWidthSize + "px";
-        cameraOverlay.style.borderRightWidth = boxWidthSize + "px";
-        cameraOverlay.style.borderBottomWidth = boxHeightSize + "px";
+        cameraOverlay.style.borderTopWidth = boxHeightSize + 'px';
+        cameraOverlay.style.borderLeftWidth = boxWidthSize + 'px';
+        cameraOverlay.style.borderRightWidth = boxWidthSize + 'px';
+        cameraOverlay.style.borderBottomWidth = boxHeightSize + 'px';
 
         overlayCoords.x = boxWidthSize;
-        overlayCoords.y = boxHeightSize
-        overlayCoords.width = cameraCanvas.width - (boxWidthSize * 2);
+        overlayCoords.y = boxHeightSize;
+          overlayCoords.width = cameraCanvas.width - (boxWidthSize * 2);
         overlayCoords.height = cameraCanvas.height - (boxHeightSize * 2);
 
       }
-     
+
     };
 
-    var setupVariables = function(e) {
+    var setupVariables = function (e) {
       dWidth = cameraCanvas.width = window.innerWidth;
-      dHeight = cameraCanvas.height = window.innerHeight; 
+      dHeight = cameraCanvas.height = window.innerHeight;
       dx = 0;
       dy = 0;
 
       sx = 0;
       sy = 0;
 
-      // Make the video coordinate space the same as the window. 
+      // Make the video coordinate space the same as the window.
       // size in the longest dimension.
       // Then center and clip. and map back to correct space.
       scaleX = (dWidth / cameraVideo.videoWidth);
@@ -170,9 +188,9 @@
       scaleFactor = Math.max(scaleX, scaleY);
 
       // Trim the left
-      sx = ((cameraVideo.videoWidth * scaleFactor) / 2) - (dWidth/ 2);
+      sx = ((cameraVideo.videoWidth * scaleFactor) / 2) - (dWidth / 2);
       sy = ((cameraVideo.videoHeight * scaleFactor) / 2) - (dHeight / 2);
-     
+
       // Trim the right.
       sWidth = (cameraVideo.videoWidth * scaleFactor) - sx * 2;
       sHeight = (cameraVideo.videoHeight * scaleFactor) - sy * 2;
@@ -180,54 +198,63 @@
       return (cameraVideo.videoWidth > 0);
     };
 
-    var captureFrame = function() {
+    var captureFrame = function () {
 
       // Work out which part of the video to capture and apply to canvas.
-      canvas.drawImage(cameraVideo, sx /scaleFactor, sy/scaleFactor, sWidth/scaleFactor, sHeight/scaleFactor, dx, dy, dWidth, dHeight);
+      canvas.drawImage(cameraVideo, sx / scaleFactor, sy / scaleFactor, sWidth / scaleFactor, sHeight / scaleFactor, dx, dy, dWidth, dHeight);
 
       drawOverlay(dWidth, dHeight, scaleFactor);
 
       // A frame has been captured.
-      if(self.onframe) self.onframe();
+      if (self.onframe) {
+        self.onframe();
+      }
 
       coordinatesHaveChanged = false;
       requestAnimationFrame(captureFrame);
     };
 
-    var getCamera = function(videoSource, cb) {
+    var getCamera = function (videoSource, cb) {
 
-      cb = cb || function() {};
+      cb = cb || function () {};
 
       var gUM = (navigator.getUserMedia ||
-                       navigator.webkitGetUserMedia ||
-                       navigator.mozGetUserMedia ||
-                       navigator.msGetUserMedia || null);
+        navigator.webkitGetUserMedia ||
+        navigator.mozGetUserMedia ||
+        navigator.msGetUserMedia || null);
 
       var params;
 
-      if(videoSource === undefined && cameras.length == 0) {
+      if (videoSource === undefined && cameras.length === 0) {
         // Because we have no source information, have to assume it user facing.
-        params = { video: true }; 
+        params = {
+          video : true
+        };
+      } else {
+        params = {
+          video : {
+            optional : [{
+                sourceId : videoSource.id
+              }
+            ]
+          }
+        };
       }
-      else {
-        params = { video: { optional: [{sourceId: videoSource.id}] } };
-      }
-  
-      gUM.call(navigator, params, function(theStream) {
+
+      gUM.call(navigator, params, function (theStream) {
         localStream = theStream;
-        
-        cameraVideo.onloadeddata = function(e) {
+
+        cameraVideo.onloadeddata = function (e) {
 
           coordinatesHaveChanged = true;
-          
+
           var isSetup = setupVariables(e);
-          if(isSetup) {
+          if (isSetup) {
             requestAnimationFrame(captureFrame.bind(self));
-          }
-          else {
+          } else {
             // This is just to get around the fact that the videoWidth is not
             // available in Firefox until sometime after the data has loaded.
-            setTimeout(function() {
+            setTimeout(function () {
               setupVariables(e);
 
               requestAnimationFrame(captureFrame.bind(self));
@@ -235,10 +262,10 @@
           }
 
           // The video is ready, and the camerea captured
-          if(videoSource === undefined) {
+          if (videoSource === undefined) {
             // There is no meta data about the camera, assume user facing.
-            videoSource = { 
-              'facing': 'user'
+            videoSource = {
+              'facing' : 'user'
             };
           }
 
@@ -248,54 +275,52 @@
         cameraVideo.src = window.URL.createObjectURL(localStream);
         cameraVideo.load();
         cameraVideo.play();
-      }, function(error) {});
+      }, function (error) {});
     };
 
-    var getSources = function(cb) {
-      cb = cb || function() {};
+    var getSources = function (cb) {
+      cb = cb || function () {};
 
-      if('getSources' in MediaStreamTrack) {
-        MediaStreamTrack.getSources(function(sources) {
+      if ('getSources' in MediaStreamTrack) {
+        MediaStreamTrack.getSources(function (sources) {
 
-          for(var i = 0; i < sources.length; i++) {
+          for (var i = 0; i < sources.length; i++) {
             var source = sources[i];
-            if(source.kind === 'video') {
+            if (source.kind === 'video') {
 
-              if(source.facing === 'environment') {
+              if (source.facing === 'environment') {
                 // cameras facing the environment are pushed to the front of the page
                 cameras.unshift(source);
-              }
-              else {
+              } else {
                 cameras.push(source);
               }
             }
           }
 
-          if(cameras.length == 1) {
-            cameraToggle.style.display="none";
+          if (cameras.length == 1) {
+            cameraToggle.style.display = 'none';
           }
 
           cb();
         });
-      }
-      else {
+      } else {
         // We can't pick the correct camera because the API doesn't support it.
         cb();
       }
     };
 
-    var toggleFacingState = function(camera) {
+    var toggleFacingState = function (camera) {
       var facing = camera.facing ? camera.facing : 'user';
       cameraRoot.classList.remove('Camera--facing-environment');
       cameraRoot.classList.remove('Camera--facing-user');
       cameraRoot.classList.add('Camera--facing-' + facing);
     };
 
-    cameraToggleInput.addEventListener('change', function() {
+    cameraToggleInput.addEventListener('change', function () {
       // this is the input element, not the control
       var cameraIdx = 0;
 
-      if(this.checked === true) {
+      if (this.checked === true) {
         cameraIdx = 1;
       }
 
@@ -303,23 +328,23 @@
 
     });
 
-    window.addEventListener('resize', function() {
+    window.addEventListener('resize', function () {
       coordinatesHaveChanged = true;
       setupVariables();
-    }.bind(this));
+    }
+      .bind(this));
 
-    document.addEventListener('visibilitychange', function(e) {
-      if(document.visibilityState === 'hidden') {
+    document.addEventListener('visibilitychange', function (e) {
+      if (document.visibilityState === 'hidden') {
         // Disconnect the camera.
-        if(localStream !== undefined) {
+        if (localStream !== undefined) {
           localStream.stop();
           localStream = undefined;
         }
-      }
-      else {
+      } else {
         var cameraIdx = 0;
 
-        if(this.checked === true) {
+        if (this.checked === true) {
           cameraIdx = 1;
         }
 
@@ -328,14 +353,14 @@
     });
 
     // Init
-    getSources(function() { 
+    getSources(function () {
       // On first run, select the first camera.
       getCamera(cameras[0], toggleFacingState);
     });
 
   };
 
-  window.addEventListener('load', function() {
+  window.addEventListener('load', function () {
     var camera = new QRCodeCamera();
   });
 })();

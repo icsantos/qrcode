@@ -11,7 +11,7 @@ var QRClient = function() {
     } 
     catch(e) {
       // consume the error.
-      console.log(e)
+      console.log(e);
     }
   };
  };

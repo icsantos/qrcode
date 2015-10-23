@@ -18,6 +18,7 @@ importScripts('grid.js',
 
 
 self.onmessage = function(e) {
+  'use strict';
   var data = e.data;
 
   try {
@@ -26,7 +27,7 @@ self.onmessage = function(e) {
     var result = qrcode.decode(width, height, data);
     postMessage(result);
   } 
-  catch(e) {
+  catch(error) {
     postMessage(undefined);
   }
 
