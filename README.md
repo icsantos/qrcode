@@ -31,20 +31,27 @@ I was not inclined to install an antique version of .NET Framework and Visual St
 Sounds like a plan.
 * Downloaded [Microsoft Visual Studio Community 2015](https://www.visualstudio.com/downloads/download-visual-studio-vs), installing C++ and Web Development
 * Added user environment variables (Control Panel|System|Advanced System Settings|Environment Variables)
+
     ```
     GYP_MSVS_VERSION=2015
     VCTargetsPath=C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V140
     ```
+
 * Opened cmd as Admin
+
     ```
     npm config set msvs_version 2015 --global
     ```
+
 * Updated node (v4.2.1) and npm (v2.14.7) ([details](https://docs.npmjs.com/getting-started/installing-node))
 * Updated gulp ([details](https://www.npmjs.com/package/gulp-update))
+
       ```
       npm install gulp-update
       ```
+
 * Updated node-sass
+
     ```
     npm install node-sass
     ```
@@ -54,12 +61,15 @@ Sounds like a plan.
 
 Followed the solution posted [here](http://devquestion.tk/32552499/error-running-gulp-sass.html)
 * Some clean-up first
+
     ```
     CD /D D:\GitHub\qrcode\app
     RD ..\node_modules /s
     ```
+
 * Opened package.json, changed gulp-sass version to 2.0.4
 * Fixed node-sass
+
     ```
     npm install node-sass@3.3.3
     npm -g install node-gyp@3
@@ -82,14 +92,17 @@ Also a success.  Next step was to modify the scripts.  This was a 2-part quiz bu
 * app\scripts\main.js
   - changed `setInterval` to `requestAnimationFrame` in the captureFrame() function
   - created a web worker in the QRCodeManager() function
-* app\index.html - removed `<script>` tags of the scripts moved to the web worker
+* app\index.html
+  - removed `<script>` tags of the scripts moved to the web worker
 
 ## Testing the app
 * Open cmd as Admin
+
     ```
     CD /D D:\GitHub\qrcode\app
     gulp serve
     ```
+
 * In Chrome, press F12 to open DevTools
 * Click on the Timeline tab
 * Enable Frames view and Flame Chart view
